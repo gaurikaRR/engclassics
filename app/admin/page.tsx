@@ -17,7 +17,7 @@ export default function AdminPage() {
   // Form fields
   const [title, setTitle]         = useState('')
   const [author, setAuthor]       = useState('')
-  const [genre, setGenre]         = useState(GENRES[0])
+  const [genre, setGenre] = useState<string>(GENRES[0])
   const [year, setYear]           = useState('')
   const [summary, setSummary]     = useState('')
   const [isbn, setIsbn]           = useState('')
