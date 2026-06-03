@@ -47,9 +47,12 @@ export default async function BookPage({ params }: Props) {
 
       <div style={{ display: 'flex', gap: '32px', marginBottom: '40px', flexWrap: 'wrap', marginTop: '16px' }}>
         <div style={{ width: '160px', minWidth: '160px', height: '220px', borderRadius: '12px', overflow: 'hidden', backgroundColor: colour, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-          <img src={getCoverUrl(book.isbn)} alt={book.title}
+
+          <img
+            src={getCoverUrl(book.isbn)}
+            alt={book.title}
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
-            onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }} />
+          />
           <div style={{ padding: '16px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
             <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '13px', fontWeight: 600, lineHeight: 1.35 }}>{book.title}</p>
             <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px', marginTop: '6px' }}>{book.author}</p>
