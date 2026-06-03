@@ -6,29 +6,36 @@ import ReviewSection from '@/components/ReviewSection'
 import BookCard from '@/components/BookCard'
 import { getCoverUrl, GENRE_COLOURS } from '@/types'
 
+// Next.js 15+ requires params to be awaited
 interface Props {
-  params: { id: string }
+  params: Promise<{ id: string }>
 }
 
 export default async function BookPage({ params }: Props) {
+  const { id } = await params
+
   const supabase = await createClient()
 
   // Get logged-in user + profile
   const { data: { user } } = await supabase.auth.getUser()
   let profile = null
   if (user) {
-    const { data } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', user.id)
+      .single()
     profile = data
   }
 
-  // Fetch the book
-  const { data: book } = await supabase
+  // Fetch the book using the awaited id
+  const { data: book, error } = await supabase
     .from('books_with_stats')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
-  if (!book) return notFound()
+  if (error || !book) return notFound()
 
   // Fetch reviews with reviewer profiles
   const { data: reviews } = await supabase
@@ -45,72 +52,78 @@ export default async function BookPage({ params }: Props) {
     .neq('id', book.id)
     .limit(3)
 
-  const coverColour = GENRE_COLOURS[book.genre] || '#3A2A4A'
-  const roundedRating = Math.round(book.avg_rating || 0)
+  const coverColour  = GENRE_COLOURS[book.genre] || '#3A2A4A'
+  const rating       = book.avg_rating || 0
+  const roundedRating = Math.round(rating)
+  const stars        = '★'.repeat(roundedRating) + '☆'.repeat(5 - roundedRating)
 
   return (
-    <div className="max-w-5xl mx-auto px-6 py-10">
+    <div style={{ maxWidth: '960px', margin: '0 auto', padding: '40px 24px' }}>
+
       {/* Back link */}
-      <Link href="/" className="text-sm text-stone-500 hover:text-stone-800 transition-colors inline-flex items-center gap-1 mb-8">
+      <Link href="/" style={{ fontSize: '13px', color: '#78716c', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', marginBottom: '32px' }}>
         ← Back to library
       </Link>
 
       {/* Book header */}
-      <div className="flex flex-col md:flex-row gap-8 mb-10">
+      <div style={{ display: 'flex', gap: '32px', marginBottom: '40px', flexWrap: 'wrap' }}>
+
         {/* Cover */}
-        <div
-          className="relative w-full md:w-52 flex-shrink-0 rounded-xl overflow-hidden flex items-center justify-center"
-          style={{ backgroundColor: coverColour, minHeight: '14rem' }}
-        >
-          <Image
+        <div style={{
+          width: '160px',
+          minWidth: '160px',
+          height: '220px',
+          borderRadius: '12px',
+          overflow: 'hidden',
+          backgroundColor: coverColour,
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}>
+          <img
             src={getCoverUrl(book.isbn)}
             alt={book.title}
-            fill
-            className="object-cover"
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', objectFit: 'cover' }}
             onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
-            priority
           />
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-5 pointer-events-none">
-            <span className="font-playfair text-white/90 text-base text-center font-medium leading-snug drop-shadow">
-              {book.title}
-            </span>
-            <span className="text-white/50 text-sm mt-2">{book.author}</span>
+          <div style={{ padding: '16px', textAlign: 'center', position: 'relative' }}>
+            <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '13px', fontWeight: 600, lineHeight: 1.35 }}>{book.title}</p>
+            <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '11px', marginTop: '6px' }}>{book.author}</p>
           </div>
         </div>
 
         {/* Meta */}
-        <div className="flex-1">
-          <p className="text-xs uppercase tracking-widest text-stone-400 mb-2">{book.genre}</p>
-          <h1 className="font-playfair text-3xl font-semibold text-stone-900 mb-1 leading-tight">
+        <div style={{ flex: 1, minWidth: '200px' }}>
+          <p style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.6px', color: '#a8a29e', marginBottom: '8px' }}>
+            {book.genre}
+          </p>
+          <h1 style={{ fontFamily: 'var(--font-playfair, Georgia, serif)', fontSize: '28px', fontWeight: 600, color: '#1c1917', marginBottom: '6px', lineHeight: 1.2 }}>
             {book.title}
           </h1>
-          <p className="text-stone-500 text-base mb-4">{book.author} · {book.year_published}</p>
-
-          {/* Rating */}
-          <div className="flex items-center gap-2 mb-6">
-            <span className="text-amber-500 text-xl tracking-wider">
-              {'★'.repeat(roundedRating)}{'☆'.repeat(5 - roundedRating)}
-            </span>
-            <span className="font-semibold text-stone-800 text-lg">{(book.avg_rating || 0).toFixed(1)}</span>
-            <span className="text-stone-400 text-sm">({book.review_count} reviews)</span>
+          <p style={{ fontSize: '14px', color: '#78716c', marginBottom: '16px' }}>
+            {book.author} &middot; {book.year_published}
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px' }}>
+            <span style={{ color: '#f59e0b', fontSize: '20px', letterSpacing: '2px' }}>{stars}</span>
+            <span style={{ fontWeight: 600, fontSize: '18px', color: '#1c1917' }}>{rating.toFixed(1)}</span>
+            <span style={{ fontSize: '13px', color: '#a8a29e' }}>({book.review_count || 0} reviews)</span>
           </div>
-
-          {/* Summary */}
-          <p className="text-xs uppercase tracking-widest text-stone-400 mb-2">About this book</p>
-          <p className="text-stone-700 text-sm leading-relaxed">{book.summary}</p>
+          <p style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#a8a29e', marginBottom: '8px' }}>About this book</p>
+          <p style={{ fontSize: '14px', color: '#57534e', lineHeight: 1.75 }}>{book.summary}</p>
         </div>
       </div>
 
-      <hr className="border-stone-200 mb-10" />
+      <hr style={{ borderColor: '#e7e5e4', marginBottom: '36px' }} />
 
       {/* Reviews */}
-      <section className="mb-12">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="font-playfair text-2xl font-semibold text-stone-900">
-            Reviews <span className="text-stone-400 text-lg font-normal">({book.review_count})</span>
+      <section style={{ marginBottom: '48px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+          <h2 style={{ fontFamily: 'var(--font-playfair, Georgia, serif)', fontSize: '22px', fontWeight: 600, color: '#1c1917' }}>
+            Reviews <span style={{ fontWeight: 400, fontSize: '15px', color: '#a8a29e' }}>({book.review_count || 0})</span>
           </h2>
         </div>
-
         <ReviewSection
           bookId={book.id}
           initialReviews={reviews || []}
@@ -119,39 +132,61 @@ export default async function BookPage({ params }: Props) {
         />
       </section>
 
-      <hr className="border-stone-200 mb-10" />
+      <hr style={{ borderColor: '#e7e5e4', marginBottom: '36px' }} />
 
-      {/* PDF + Amazon */}
-      <section className="mb-12">
-        <h2 className="font-playfair text-2xl font-semibold text-stone-900 mb-2">Get the book</h2>
-        <p className="text-stone-500 text-sm mb-6">
+      {/* Get the book */}
+      <section style={{ marginBottom: '48px' }}>
+        <h2 style={{ fontFamily: 'var(--font-playfair, Georgia, serif)', fontSize: '22px', fontWeight: 600, color: '#1c1917', marginBottom: '8px' }}>
+          Get the book
+        </h2>
+        <p style={{ fontSize: '14px', color: '#78716c', marginBottom: '20px' }}>
           {book.pdf_url
-            ? 'This is a public domain work — read it free online or buy a curated physical edition.'
-            : 'This book is under copyright. Purchase a copy via Amazon.'}
+            ? 'Public domain — read free online or buy a physical edition.'
+            : 'This title is under copyright. Purchase via Amazon.'}
         </p>
-
-        <div className="flex flex-col sm:flex-row gap-4">
-          {/* PDF button — only for public domain books */}
+        <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
           {book.pdf_url && (
             <a
               href={`/api/pdf?book_id=${book.id}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 text-center border border-stone-300 bg-stone-50 hover:bg-stone-100 text-stone-800 text-sm font-medium py-3 px-6 rounded-xl transition-colors"
+              style={{
+                flex: 1, minWidth: '160px',
+                textAlign: 'center',
+                border: '1px solid #d6d3d1',
+                backgroundColor: '#fafaf9',
+                color: '#1c1917',
+                fontSize: '14px',
+                fontWeight: 500,
+                padding: '12px 20px',
+                borderRadius: '12px',
+                textDecoration: 'none',
+                display: 'block',
+              }}
             >
               📖 Read online (PDF)
             </a>
           )}
-
-          {/* Amazon link */}
           {book.amazon_link && (
             <a
               href={book.amazon_link}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 text-center border border-amber-400 bg-amber-50 hover:bg-amber-100 text-amber-900 text-sm font-medium py-3 px-6 rounded-xl transition-colors"
+              style={{
+                flex: 1, minWidth: '160px',
+                textAlign: 'center',
+                border: '1px solid #fbbf24',
+                backgroundColor: '#fffbeb',
+                color: '#92400e',
+                fontSize: '14px',
+                fontWeight: 500,
+                padding: '12px 20px',
+                borderRadius: '12px',
+                textDecoration: 'none',
+                display: 'block',
+              }}
             >
-              🛒 Buy hard copy on Amazon
+              🛒 Buy on Amazon
             </a>
           )}
         </div>
@@ -160,14 +195,16 @@ export default async function BookPage({ params }: Props) {
       {/* Similar books */}
       {similarBooks && similarBooks.length > 0 && (
         <>
-          <hr className="border-stone-200 mb-10" />
+          <hr style={{ borderColor: '#e7e5e4', marginBottom: '36px' }} />
           <section>
-            <h2 className="font-playfair text-2xl font-semibold text-stone-900 mb-2">Similar books</h2>
-            <p className="text-stone-500 text-sm mb-6">More from {book.genre}</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-5">
-              {similarBooks.map((b) => (
-                <BookCard key={b.id} book={b} />
-              ))}
+            <h2 style={{ fontFamily: 'var(--font-playfair, Georgia, serif)', fontSize: '22px', fontWeight: 600, color: '#1c1917', marginBottom: '6px' }}>
+              Similar books
+            </h2>
+            <p style={{ fontSize: '13px', color: '#a8a29e', marginBottom: '20px' }}>
+              More from {book.genre}
+            </p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '16px' }}>
+              {similarBooks.map(b => <BookCard key={b.id} book={b} />)}
             </div>
           </section>
         </>
