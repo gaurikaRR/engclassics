@@ -1,55 +1,80 @@
-import Image from 'next/image'
+'use client'
+
+import { useState } from 'react'
 import Link from 'next/link'
 import { getCoverUrl, GENRE_COLOURS } from '@/types'
 import type { Book } from '@/types'
 
-function StarRating({ rating }: { rating: number }) {
-  const rounded = Math.round(rating)
-  return (
-    <div className="flex items-center gap-1">
-      <span className="text-amber-500 text-sm tracking-wide">
-        {'★'.repeat(rounded)}{'☆'.repeat(5 - rounded)}
-      </span>
-      <span className="text-stone-500 text-xs">{rating.toFixed(1)}</span>
-    </div>
-  )
-}
-
 export default function BookCard({ book }: { book: Book }) {
-  const coverColour = GENRE_COLOURS[book.genre] || '#3A2A4A'
+  const [imgFailed, setImgFailed] = useState(false)
+  const colour = GENRE_COLOURS[book.genre] || '#3A2A4A'
+  const rating  = book.avg_rating || 0
+  const stars   = '★'.repeat(Math.round(rating)) + '☆'.repeat(5 - Math.round(rating))
 
   return (
-    <Link href={`/book/${book.id}`} className="group block">
-      <div className="border border-stone-200 rounded-xl overflow-hidden bg-white hover:border-stone-400 hover:-translate-y-1 transition-all duration-200">
-        {/* Cover image */}
-        <div className="relative h-48 w-full" style={{ backgroundColor: coverColour }}>
-          <Image
-            src={getCoverUrl(book.isbn)}
-            alt={book.title}
-            fill
-            className="object-cover"
-            onError={(e) => {
-              // Hide the image on error — fallback colour shows through
-              ;(e.target as HTMLImageElement).style.display = 'none'
-            }}
-          />
-          {/* Fallback title shown over colour if image fails */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center p-4 pointer-events-none">
-            <span className="font-playfair text-white/90 text-sm text-center font-medium leading-snug drop-shadow">
-              {book.title}
-            </span>
-            <span className="text-white/50 text-xs mt-1 text-center">{book.author}</span>
-          </div>
+    <Link href={`/book/${book.id}`} className="block group">
+      <div className="rounded-xl overflow-hidden border border-stone-200 bg-white transition-all duration-200 group-hover:-translate-y-1 group-hover:border-stone-300 h-full">
+
+        {/* Cover */}
+        <div
+          className="relative flex items-center justify-center overflow-hidden"
+          style={{ height: '200px', backgroundColor: colour }}
+        >
+          {!imgFailed ? (
+            <img
+              src={getCoverUrl(book.isbn)}
+              alt={book.title}
+              onError={() => setImgFailed(true)}
+              style={{
+                position: 'absolute',
+                top: 0, left: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+              }}
+            />
+          ) : (
+            /* Fallback: styled text on coloured background */
+            <div style={{ padding: '16px', textAlign: 'center' }}>
+              <p style={{
+                color: 'rgba(255,255,255,0.92)',
+                fontSize: '14px',
+                fontWeight: 600,
+                lineHeight: 1.35,
+                marginBottom: '6px',
+                fontFamily: 'var(--font-playfair, Georgia, serif)',
+              }}>
+                {book.title}
+              </p>
+              <p style={{ color: 'rgba(255,255,255,0.55)', fontSize: '11px' }}>
+                {book.author}
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Info */}
-        <div className="p-3">
-          <p className="font-playfair font-semibold text-stone-900 text-sm leading-tight line-clamp-2 mb-1">
+        {/* Info — title shown only once here */}
+        <div style={{ padding: '12px' }}>
+          <p style={{
+            fontWeight: 600,
+            fontSize: '13px',
+            color: '#1c1917',
+            marginBottom: '3px',
+            lineHeight: 1.3,
+            display: '-webkit-box',
+            WebkitLineClamp: 2,
+            WebkitBoxOrient: 'vertical',
+            overflow: 'hidden',
+          }}>
             {book.title}
           </p>
-          <p className="text-stone-500 text-xs mb-2">{book.author}</p>
-          <StarRating rating={book.avg_rating || 0} />
-          <p className="text-stone-400 text-xs mt-1">{book.review_count} reviews</p>
+          <p style={{ fontSize: '12px', color: '#78716c', marginBottom: '8px' }}>
+            {book.author}
+          </p>
+          <p style={{ color: '#f59e0b', fontSize: '13px', letterSpacing: '1px' }}>{stars}</p>
+          <p style={{ fontSize: '11px', color: '#a8a29e', marginTop: '2px' }}>
+            {rating.toFixed(1)} · {book.review_count || 0} reviews
+          </p>
         </div>
       </div>
     </Link>
